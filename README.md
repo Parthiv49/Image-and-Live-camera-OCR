@@ -4,9 +4,27 @@ An end-to-end OCR project built around **Qwen2-VL-2B-Instruct** for extracting t
 
 - Single images
 - Batch image uploads
-- Live camera frames (via WebSocket)
+- Live camera frames (via WebSocket or HTTP REST)
 
 The app uses a FastAPI backend, OpenCV-based preprocessing, and a browser UI served from the API.
+
+## What's New (v13.1)
+
+### OCR Engine (v12)
+- **Improved camera preprocessing**: Higher max dimension (1280px), upscaling small frames, adaptive sharpening based on blur detection
+- **Bilateral filter**: Reduces sensor noise while preserving text edges
+- **Lower confidence threshold**: More permissive MIN_CAMERA_SCORE (25 vs 28) for better text capture
+
+### FastAPI Backend (v13)
+- **Accumulated scan with edit support**: Server-side merge of unique text lines across frames
+- **Toggle accumulation**: Enable/disable accumulation via client-controlled toggle
+- **HTTP camera endpoint**: New `POST /ocr/camera/frame` as REST alternative to WebSocket
+- **Cloudflare /docs fix**: Proper `root_path` configuration for Swagger UI behind tunnel
+
+### Frontend (v13.1)
+- **Editable accumulated text**: Edit button to manually correct OCR results
+- **HTTP Camera Mode**: Automatic fallback when WebSocket fails (button appears after retries)
+- **Stateless HTTP pattern**: Client manages accumulated text, server merges and returns
 
 ## Project Structure
 
@@ -24,9 +42,13 @@ The app uses a FastAPI backend, OpenCV-based preprocessing, and a browser UI ser
   - Batch mode for multiple files
   - Optional auto-crop for document region extraction
 - **Live Camera OCR**
-  - Sends frames periodically to backend
-  - Returns real-time extracted text
-  - Handles busy server state to avoid stacked inference calls
+  - WebSocket or HTTP REST mode for frame processing
+  - Server-side accumulation of unique text lines across frames
+  - Toggle to enable/disable accumulation
+  - Edit button to manually correct accumulated text
+  - Motion detection to avoid redundant processing
+  - Confidence meter with adaptive frame rate
+  - Automatic HTTP fallback when WebSocket fails
 - **OCR Quality Pipeline**
   - Upscaling, shadow removal, denoising, sharpening, auto-rotation
   - Multiple OCR prompts with scoring to choose the best output (image mode)
@@ -88,6 +110,11 @@ Then open:
     - `files`: multiple image files
     - `auto_crop`: `true|false`
 - `WS /ocr/camera` – live camera OCR endpoint (base64 image frames)
+  - Supports accumulation toggle and edit commands
+- `POST /ocr/camera/frame` – HTTP REST alternative to WebSocket camera (stateless)
+  - form fields:
+    - `file`: JPEG/PNG image of camera frame
+    - `accumulated`: accumulated OCR text from previous frames (optional)
 
 ## Notes
 
@@ -98,6 +125,7 @@ Then open:
 
 ## Future Improvements
 
-- Add confidence metrics per OCR block
-- Add export options (TXT/JSON)
 - Add Docker setup for consistent deployment
+- Add language-specific OCR models for better accuracy
+- Add support for PDF document OCR
+- Add batch processing queue with progress tracking
